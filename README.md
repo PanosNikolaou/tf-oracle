@@ -113,6 +113,87 @@ This will attach both SSH and Swarm NSGs to the compute instance through the `ns
 
 ---
 
+## Security: Removing tfvars and Rewriting Git History
+
+If a `*.tfvars` file containing secrets (API keys, private key paths, passwords) is accidentally committed and pushed, you **must remove it and rewrite Git history** to prevent credential exposure.
+
+### 1. Remove tfvars from tracking
+
+```bash
+git rm --cached terraform.tfvars
+```
+
+Add to `.gitignore`:
+```bash
+echo "*.tfvars" >> .gitignore
+echo "terraform.tfvars" >> .gitignore
+```
+
+Commit the change:
+```bash
+git add .gitignore
+git commit -m "Remove tfvars and ignore sensitive files"
+```
+
+### 2. Rewrite Git history (purge secrets)
+
+Install git-filter-repo:
+```bash
+pip install git-filter-repo
+```
+
+Then run:
+```bash
+git filter-repo --path terraform.tfvars --invert-paths --force
+```
+
+This completely removes the file from all Git history.
+
+### 3. Re-add remote and force push
+
+After history rewrite, re-add the remote:
+```bash
+git remote add origin https://github.com/<your-username>/<your-repo>.git
+```
+
+Then force push cleaned history:
+```bash
+git push --force --all origin
+git push --force --tags origin
+```
+
+### 4. Rotate compromised credentials
+
+Even after removal, assume secrets were exposed. Immediately rotate:
+- OCI API Keys
+- SSH Keys
+- Database passwords
+- Tokens or private keys
+
+---
+
+## Best Practices
+
+- Never commit `.tfvars` files
+- Use `.tfvars.example` as a template
+- Store secrets in:
+  - OCI Vault
+  - Environment variables (`TF_VAR_...`)
+  - Secret managers
+
+Recommended `.gitignore` for Terraform:
+```
+*.tfvars
+*.tfstate
+*.tfstate.backup
+.terraform/
+.crash.log
+override.tf
+override.tf.json
+```
+
+---
+
 ## File Structure
 
 ```
